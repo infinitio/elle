@@ -18,6 +18,7 @@ rule_install = None
 rule_tests = None
 
 python_plugin_datetime = None
+python_gil = None
 
 dpkg_preload = None
 
@@ -40,7 +41,7 @@ def configure(zlib_lib,
   global config, lib_static, lib_dynamic, library, library_zlib
   global python
   global rule_build, rule_check, rule_install, rule_tests
-  global python_plugin_datetime
+  global python_plugin_datetime, python_gil
 
   cxx_toolkit = cxx_toolkit or drake.cxx.Toolkit()
   cxx_config = drake.cxx.Config(cxx_config) or drake.cxx.Config()
@@ -474,17 +475,20 @@ def configure(zlib_lib,
     python_rule << python
 
     if cxx_toolkit.os is drake.os.windows:
-      python_plugin_datetime = drake.cxx.StaticLib(
-        'lib/python-datetime-bindings',
-        drake.nodes('src/elle/python/datetime-converter.cc'),
-        cxx_toolkit,
-        python_cxx_config)
+      plugin_maker = drake.cxx.StaticLib
     else:
-      python_plugin_datetime = drake.cxx.Module(
-        'lib/python-datetime-bindings',
-        drake.nodes('src/elle/python/datetime-converter.cc'),
-        cxx_toolkit,
-        python_cxx_config)
+      plugin_maker = drake.cxx.Module
+
+    python_plugin_datetime = plugin_maker(
+      'lib/python-datetime-bindings',
+      drake.nodes('src/elle/python/datetime-converter.cc'),
+      cxx_toolkit,
+      python_cxx_config)
+    python_gil = plugin_maker(
+      'lib/python-gil',
+      drake.nodes('src/elle/python/gil.cc'),
+      cxx_toolkit,
+      python_cxx_config)
 
   global dpkg_preload
   dpkg_preload = drake.cxx.Module('dpkg_preload',

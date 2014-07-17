@@ -6,6 +6,8 @@
 # undef tolower
 #endif
 
+#include <elle/python/gil.hh>
+
 #include <reactor/exception.hh>
 #include <reactor/python.hh>
 #include <reactor/scheduler.hh>
@@ -150,6 +152,7 @@ protected:
         std::rethrow_exception(tmp);
       }
       _backtrace_root = elle::Backtrace::current();
+      elle::python::ReenterPython gil;
       action();
     }
     catch (reactor::Terminate const&)
@@ -240,14 +243,18 @@ BOOST_PYTHON_MODULE(reactor)
          boost::noncopyable>
     ("Thread", boost::python::init<reactor::Scheduler&,
                                    std::string const&,
-                                   boost::python::object>())
+                                   boost::python::object>()
+                                   )
     .def(boost::python::init<std::string const&,
                                    boost::python::object>())
     .def("wait", &wait_wrap)
     ;
-  boost::python::def("yield_", reactor::yield);
+  boost::python::def("yield_",
+                     reactor::yield,
+                     elle::python::release_gil_call_policies());
   boost::python::def("sleep",
-                     static_cast<void (*)(reactor::Duration)>(reactor::sleep));
+                     static_cast<void (*)(reactor::Duration)>(reactor::sleep),
+                     elle::python::release_gil_call_policies());
   boost::python::def("scheduler", &reactor::scheduler,
     boost::python::return_value_policy<boost::python::copy_non_const_reference>());
 
