@@ -10,8 +10,10 @@
 # else
 
 #  define ELLE_LOG_COMPONENT(_component_)                               \
+   _Pragma("GCC visibility push(hidden)")                               \
   static char const* __attribute__((unused))                            \
     _trace_component_ = _component_;                                    \
+   _Pragma("GCC visibility pop");                                       \
 
 #  define ELLE_LOG_LEVEL_SCOPE(Lvl, T, ...)                             \
     auto BOOST_PP_CAT(__trace_ctx_, __LINE__) =                         \
