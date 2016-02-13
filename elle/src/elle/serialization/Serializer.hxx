@@ -1035,6 +1035,8 @@ namespace elle
     | Hierarchy |
     `----------*/
 
+    void* hierarchy_map(TypeInfo const& ti,
+                        std::function<void*()> builder);
     template <typename T>
     class Hierarchy
     {
@@ -1073,25 +1075,14 @@ namespace elle
         std::unordered_map<std::string,
                            std::function<std::unique_ptr<T>(SerializerIn&)>>
         TypeMap;
-#ifdef INFINIT_WINDOWS
-# ifdef ELLE_SERIALIZATION_USE_DLL
-  __declspec(dllimport) static TypeMap& _map();
-# else
-  __declspec(dllexport) static TypeMap& _map()
-  {
-    static TypeMap res;
-    return res;
-  }
-# endif
-#else
+
       static
       TypeMap&
       _map()
       {
-        static TypeMap res;
-        return res;
+        return *static_cast<TypeMap*>(
+          hierarchy_map(type_info<T>(),[&] { return new TypeMap();}));
       }
-#endif
 
       static
       std::map<TypeInfo, std::string>&

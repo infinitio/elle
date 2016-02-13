@@ -483,25 +483,29 @@ def configure(zlib_lib,
       drake.cxx.Object(drake.node('src/elle/archive/%s.cc' % f),
                        cxx_toolkit, cxx_archive_config))
 
+  lib_cxx_config = drake.cxx.Config(cxx_config)
+  if cxx_toolkit.os == drake.os.windows:
+    lib_cxx_config.use_whole_archive()
+    lib_cxx_config.define('ELLE_SERIALIZATION_BUILD_DLL')
   lib_static = drake.cxx.StaticLib(
     'lib/elle',
     sources + [zlib_lib, libarchive_lib],
     cxx_toolkit,
-    cxx_config,
+    lib_cxx_config,
   )
   lib_dynamic = drake.cxx.DynLib(
     'lib/elle',
     sources + [zlib_lib, libarchive_lib],
     cxx_toolkit,
-    cxx_config,
+    lib_cxx_config,
   )
 
   rule_build = drake.Rule('build')
-  rule_build << lib_static
-  if cxx_toolkit.os not in [drake.os.windows, drake.os.ios, drake.os.android]:
+  if cxx_toolkit.os not in [drake.os.ios, drake.os.android]:
     rule_build << lib_dynamic
     library = lib_dynamic
   else:
+    rule_build << lib_static
     library = lib_static
 
   ## ------ ##

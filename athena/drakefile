@@ -38,8 +38,7 @@ def configure(cxx_toolkit,
   ## Library ##
   ## ------- ##
 
-  if cxx_toolkit.os in [
-      drake.os.windows, drake.os.ios, drake.os.android]:
+  if cxx_toolkit.os in [drake.os.ios, drake.os.android]:
     elle_lib = elle.lib_static
     reactor_lib = reactor.lib_static
     cryptography_lib = cryptography.lib_static
@@ -73,8 +72,7 @@ def configure(cxx_toolkit,
     sources + [elle_lib, reactor_lib, cryptography_lib],
     cxx_toolkit, local_config)
   rule_build = drake.Rule('build')
-  if cxx_toolkit.os in [
-      drake.os.windows, drake.os.ios, drake.os.android]:
+  if cxx_toolkit.os in [drake.os.ios, drake.os.android]:
     library = lib_static
   else:
     library = lib_dynamic

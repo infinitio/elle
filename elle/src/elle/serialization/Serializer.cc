@@ -128,5 +128,17 @@ namespace elle
       ELLE_LOG_COMPONENT("elle.serialization.Serializer");
       ELLE_WARN("%s: do nothing", *this);
     }
+
+    void* hierarchy_map(TypeInfo const& ti,
+                        std::function<void*()> builder)
+    {
+      static std::unordered_map<TypeInfo, void*> map;
+      auto res = map.find(ti);
+      if (res != map.end())
+        return res->second;
+      auto b = builder();
+      map.insert(std::make_pair(ti, b));
+      return b;
+    }
   }
 }
