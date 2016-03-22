@@ -732,6 +732,8 @@ def configure(curl_config,
     ('rdv-cat', [], None),
     ('rdv-utp-cat', [], None),
     ('rdv-server', [], None),
+    ('connectivity-server', [], None),
+    ('connectivity', [], None),
     # 'reactor/file',
     ]
   if cxx_toolkit.os in [drake.os.linux, drake.os.macos]:
@@ -773,7 +775,7 @@ def configure(curl_config,
                                 cxx_toolkit, tests_config)
     rule_tests << test
     if test_name in ['filesystem_git', 'filesystem_bind', 'rdv-cat','rdv-utp-cat',
-                     'rdv-server',]:
+                     'rdv-server', 'connectivity-server', 'connectivity']:
       continue
     env = {
       'DIR_BUILD':  str(drake.path_build()),
