@@ -1,4 +1,4 @@
-#include <boost/context/fcontext.hpp>
+#include <boost/context/all.hpp>
 
 #ifdef VALGRIND
 # include <valgrind/valgrind.h>
@@ -80,17 +80,10 @@ namespace reactor
         8 * 1024          // Min: 8 kiB
         > StackAllocator;
       /// Type of context pointer used.
-      typedef boost::context::fcontext_t Context;
+      typedef boost::context::execution_context<void> Context;
 
       /// Allocator.
       static StackAllocator stack_allocator;
-
-      static
-      void
-      wrapped_run(intptr_t arg);
-
-      using boost::context::make_fcontext;
-      using boost::context::jump_fcontext;
 
       class Backend::Thread:
         public backend::Thread
@@ -113,7 +106,11 @@ namespace reactor
           , _stack_size(StackAllocator::default_stack_size())
           , _stack_pointer(stack_allocator.allocate(this->_stack_size))
           , _context(
-            make_fcontext(this->_stack_pointer, this->_stack_size, wrapped_run))
+            [this] (boost::context::execution_context<void> caller)
+            {
+              this->_caller->_context = std::move(caller);
+              return this->_run();
+            })
           , _caller(nullptr)
           , _root(false)
         {
@@ -131,12 +128,6 @@ namespace reactor
                       this->status() == Status::starting ||
                       this->_root);
           ELLE_TRACE("%s: die", *this);
-          if (this->_context)
-          {
-            this->_context = nullptr;
-            stack_allocator.deallocate(this->_stack_pointer,
-                                       StackAllocator::default_stack_size());
-          }
           #ifdef VALGRIND
           VALGRIND_STACK_DEREGISTER(this->_valgrind_stack);
           #endif
@@ -148,7 +139,6 @@ namespace reactor
         {
           this->_root = true;
           this->status(Status::running);
-          ELLE_ASSERT(this->_context);
         }
 
       /*----------.
@@ -161,7 +151,6 @@ namespace reactor
         {
           // go from current to this
           ELLE_ASSERT(this->_caller == nullptr);
-
           bool starting = this->status() == Status::starting;
           Thread* current = this->_backend._current;
           this->_caller = current;
@@ -172,11 +161,8 @@ namespace reactor
           if (starting)
           {
             this->status(Status::running);
-            ELLE_ASSERT(this->_context);
             ELLE_TRACE("%s: start %s", *current , *this);
-            jump_fcontext(&this->_caller->_context,
-                          this->_context,
-                          reinterpret_cast<intptr_t>(this));
+            this->_context = this->_context();
             ELLE_TRACE("%s: back from %s", *current, *this);
           }
           else
@@ -184,9 +170,7 @@ namespace reactor
             ELLE_ASSERT_EQ(this->status(), Status::waiting);
             this->status(Status::running);
             ELLE_TRACE("%s: step from %s", *this, *_caller);
-            jump_fcontext(&current->_context,
-                          this->_context,
-                          reinterpret_cast<intptr_t>(this));
+            this->_context = this->_context();
           }
           // It is unclear whether an uncaught_exception mismatch has any
           // consequence if the code does not explicitly depend on its result.
@@ -211,15 +195,13 @@ namespace reactor
           // Store current exception and stack unwinding state
           this->_unwinding = std::uncaught_exception();
           this->_exception = std::current_exception();
-          this->_backend._current = this->_caller;
+          auto caller = this->_caller;
+          this->_backend._current = caller;
           ELLE_TRACE("%s: yield back to %s", *this, *this->_backend._current);
           this->_caller = nullptr;
-
           if (this->_unwinding)
             ELLE_DUMP("yielding %s with in-flight exception", *this);
-          jump_fcontext(&this->_context,
-                        this->_backend._current->_context,
-                        reinterpret_cast<intptr_t>(this));
+          caller->_context = caller->_context();
           if (this->_backend._current->_unwinding != std::uncaught_exception())
           {
             ELLE_TRACE("yield %s: unwind mismatch, expect %s, got %s",
@@ -236,7 +218,7 @@ namespace reactor
         /// Let the backend use our private constructor.
         friend class Backend;
         /// Main routine of this thread of execution.
-        void
+        boost::context::execution_context<void>
         _run()
         {
           this->status(Status::running);
@@ -273,9 +255,7 @@ namespace reactor
           this->status(Status::done);
           this->_backend._current = caller;
           ELLE_TRACE("%s: done", *this);
-          jump_fcontext(&this->_context,
-                        caller->_context,
-                        reinterpret_cast<intptr_t>(this));
+          return caller->_context();
         }
 
         /// Owning backend.
@@ -288,21 +268,11 @@ namespace reactor
         Context _context;
         /// The thread that stepped us.
         Thread* _caller;
-        /// Wrap run function so that it can be passed when doing make_fcontext.
-        friend void wrapped_run(intptr_t);
         ELLE_ATTRIBUTE(bool, root);
         #ifdef VALGRIND
         ELLE_ATTRIBUTE(unsigned int, valgrind_stack);
         #endif
       };
-
-      static
-      void
-      wrapped_run(intptr_t arg)
-      {
-        Backend::Thread* thread = reinterpret_cast<Backend::Thread*>(arg);
-        thread->_run();
-      }
 
       /*--------.
       | Backend |
