@@ -30,16 +30,17 @@ namespace elle
 # define ELLE_SFINAE_INSTANCE(Type)             \
   (*reinterpret_cast<typename std::remove_reference<Type>::type*>((void*)(0)))
 
-# define ELLE_STATIC_PREDICATE(Name, Test)                              \
-  template <typename T>                                                 \
+# define ELLE_STATIC_PREDICATE(Name, Test, ...)                         \
+  template <typename T, ## __VA_ARGS__>                                 \
   inline constexpr                                                      \
-  typename std::enable_if_exists<Test, bool>::type                      \
+  typename std::enable_if_exists<ELLE_ATTRIBUTE_STRIP_PARENS(Test),     \
+                                 bool>::type                            \
   BOOST_PP_CAT(_, Name)(int)                                            \
   {                                                                     \
     return true;                                                        \
   }                                                                     \
                                                                         \
-  template <typename T>                                                 \
+  template <typename T, ## __VA_ARGS__>                                 \
   inline constexpr                                                      \
   bool                                                                  \
   BOOST_PP_CAT(_, Name)(...)                                            \
@@ -47,7 +48,7 @@ namespace elle
     return false;                                                       \
   }                                                                     \
                                                                         \
-  template <typename T>                                                 \
+  template <typename T, ## __VA_ARGS__>                                 \
   inline constexpr                                                      \
   bool                                                                  \
   Name()                                                                \
