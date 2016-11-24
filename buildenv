@@ -343,10 +343,16 @@ class State:
       sh.ssh(State.cache_url, 'lockfile-remove', self.__path)
 
   @property
-  def cache_dir(self):
+  def old_cache_dir(self):
     import getpass
     ns = self.__opts.cache_namespace or getpass.getuser()
     return 'cache/%s/%s' % (ns, self.branch)
+
+  @property
+  def cache_dir(self):
+    import getpass
+    ns = self.__opts.cache_namespace or getpass.getuser()
+    return 'cache/%s/%s' % (ns, self.branch.replace('/', '_'))
 
   def rsync(self, s, d, exclude=None):
     v = self.__opts.verbose
@@ -373,7 +379,44 @@ class State:
     if v:
       print(res)
 
+  def migrate_build_tree(self):
+    """ Migrate cached build tree to new flattened layout if needed
+    """
+    old_path = self.old_cache_dir
+    new_path = self.cache_dir
+    if self.__opts.cache_id is not None:
+      old_path = '%s-%s' % (old_path, self.__opts.cache_id)
+      new_path = '%s-%s' % (new_path, self.__opts.cache_id)
+    have_old = False
+    have_new = False
+    try:
+      sh.ssh(self.cache_url, 'test', '-e', new_path)
+      have_new = True
+    except sh.ErrorReturnCode:
+      pass
+    if self.cache_dir == self.old_cache_dir:
+      return
+    try:
+      sh.ssh(self.cache_url, 'test', '-e', old_path)
+      have_old = True
+    except sh.ErrorReturnCode:
+      pass
+    if not have_old and not have_new:
+      return
+    elif have_old and not have_new:
+      sh.ssh(self.cache_url, 'mv', old_path, new_path)
+      # recreate the symlink
+      sh.ssh(self.cache_url,
+               'ln', '-sfn',
+               '%s-$(readlink %s | rev |cut -d- -f 1 | rev)'
+                   % (os.path.basename(self.cache_dir), self.old_cache_dir),
+               self.cache_dir)
+    elif have_old and have_new:
+      print('Please manually cleanup %s, moved to %s'
+        % (old_path, new_path))
+
   def download_build_tree(self):
+    self.migrate_build_tree()
     try:
       sh.ssh(self.cache_url, 'test', '-e', self.cache_dir)
     except sh.ErrorReturnCode:
@@ -395,12 +438,14 @@ class State:
     }
 
   def upload_build_tree(self):
+    self.migrate_build_tree()
     d = self.cache_dir
     concurrent = self.__opts.cache_id is not None
     if concurrent:
       d = '%s-%s' % (d, self.__opts.cache_id)
     if not self.__opts.dry_run:
-      sh.ssh(self.cache_url, 'mkdir', '-p', d)
+      sh.ssh(self.cache_url, 'mkdir', '-p', d,
+        '&&', 'touch', '%s.is_build_tree' % self.cache_dir)
       with State.Lock(d):
         self.rsync(
           '%s/' % self.build_tree,
