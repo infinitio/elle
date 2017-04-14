@@ -25,7 +25,8 @@ namespace elle
     // Factor those two by delegating the constructor.
     Channel::Channel(ChanneledStream& backend)
       : Channel(backend, backend._id_generate())
-    {}
+    {
+    }
 
     Channel::Channel(Channel&& source)
       : Super(source.scheduler())
@@ -84,7 +85,7 @@ namespace elle
     elle::Buffer
     Channel::_read()
     {
-      return this->_packets.get();
+      return this->_backend._read(this);
     }
 
     /*--------.

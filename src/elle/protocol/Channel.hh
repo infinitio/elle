@@ -3,8 +3,6 @@
 
 # include <elle/Printable.hh>
 
-# include <elle/reactor/Channel.hh>
-# include <elle/reactor/Thread.hh>
 # include <elle/reactor/signal.hh>
 
 # include <elle/protocol/Stream.hh>
@@ -105,7 +103,7 @@ namespace elle
       friend class ChanneledStream;
       ELLE_ATTRIBUTE(ChanneledStream&, backend);
       ELLE_ATTRIBUTE_R(Id, id);
-      ELLE_ATTRIBUTE(reactor::Channel<elle::Buffer>, packets);
+      ELLE_ATTRIBUTE(std::list<elle::Buffer>, packets);
       ELLE_ATTRIBUTE(elle::reactor::Signal, available);
     };
   }
