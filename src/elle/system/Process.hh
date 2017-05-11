@@ -6,6 +6,7 @@
 
 #include <elle/attribute.hh>
 #include <elle/compiler.hh>
+#include <elle/os/environ.hh>
 
 namespace elle
 {
@@ -30,14 +31,18 @@ namespace elle
       /// @param args List of arguments, starting with the executable, followed
       ///             by the arguments.
       /// @param set_uid Set real uid/gid to effective uid/gid before exec.
-      Process(Arguments args, bool set_uid = false);
+      /// @param env  Variable to pass in the children's environment.
+      Process(Arguments args, bool set_uid = false,
+              os::Environ env = {});
       /// Create a process.
       ///
       /// @param args List of arguments, starting with the executable, followed
       ///             by the arguments.
       /// @param set_uid Set real uid/gid to effective uid/gid before exec.
+      /// @param env  Variable to pass in the children's environment.
       Process(std::initializer_list<std::string> args,
-              bool set_uid = false);
+              bool set_uid = false,
+              os::Environ env = {});
       ~Process();
 
     /*-----------.
@@ -46,6 +51,7 @@ namespace elle
     public:
       ELLE_ATTRIBUTE_R(Arguments, arguments);
       ELLE_ATTRIBUTE_R(bool, set_uid);
+      ELLE_ATTRIBUTE_R(os::Environ, env);
 
     /*--------.
     | Control |

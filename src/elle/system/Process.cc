@@ -1,20 +1,63 @@
 #include <elle/system/Process.hh>
 
 #include <cerrno>
+#include <cstdlib> // environ
 
 #include <elle/assert.hh>
 #include <elle/err.hh>
 #include <elle/log.hh>
+#include <elle/make-vector.hh>
 #include <elle/system/unistd.hh>
 
-#ifndef INFINIT_WINDOWS
+#if defined INFINIT_WINDOWS
+# include <elle/windows.h>
+#elif defined INFINIT_MACOSX
+# include <crt_externs.h>
+#else
 # include <sys/types.h>
 # include <sys/wait.h>
-#else
-# include <elle/windows.h>
 #endif
 
 ELLE_LOG_COMPONENT("elle.system.Process");
+
+namespace
+{
+  int execvpe(const char* program, char** argv, char** envp)
+  {
+#ifdef INFINIT_MACOSX
+    char** saved = *(_NSGetEnviron());
+    *(_NSGetEnviron()) = envp;
+#else
+    char** saved = ::environ;
+    ::environ = envp;
+#endif
+    auto res = execvp(program, argv);
+#ifdef INFINIT_MACOSX
+    *(_NSGetEnviron()) = saved;
+#else
+    ::environ = saved;
+#endif
+    return res;
+  }
+
+  auto to_c(std::vector<std::string> const& args)
+  {
+    auto res = std::unique_ptr<char const*[]>(new char const*[args.size() + 1]);
+    int i = 0;
+    for (auto const& arg: args)
+      res[i++] = arg.c_str();
+    res[i] = nullptr;
+    return res;
+  }
+
+  auto flatten(elle::os::Environ const& env)
+  {
+    auto res = std::vector<std::string>{};
+    for (auto p: env)
+      res.emplace_back(p.first + "=" + p.second);
+    return res;
+  }
+}
 
 namespace elle
 {
@@ -33,29 +76,25 @@ namespace elle
         this->_pid = fork();
         if (this->_pid == 0)
         {
-          auto const& args = this->_owner.arguments();
-          std::unique_ptr<char const*[]> argv(new char const*[args.size() + 1]);
-          int i = 0;
-          for (auto const& arg: args)
-            argv[i++] = arg.c_str();
-          argv[i] = nullptr;
+          auto argv = to_c(this->_owner.arguments());
+          auto vars = flatten(this->_owner.env());
+          auto env = to_c(vars);
           try
           {
             if (_owner.set_uid())
             {
-
               auto tgt = geteuid();
               elle::seteuid(getuid());
               elle::setgid(getegid());
               elle::setuid(tgt);
             }
-            execvp(argv[0], const_cast<char**>(argv.get()));
-            ELLE_ERR("execvp(%s) error: %s", argv[0], strerror(errno));
+            execvpe(argv[0], const_cast<char**>(argv.get()), const_cast<char**>(env.get()));
+            ELLE_ERR("execvpe(%s) error: %s", argv[0], strerror(errno));
             ::exit(1);
           }
           catch (...)
           {
-            ELLE_ERR("execvp(%s) error: %s", argv[0], strerror(errno));
+            ELLE_ERR("execvpe(%s) error: %s", argv[0], strerror(errno));
             ::exit(1);
           }
         }
@@ -106,9 +145,25 @@ namespace elle
             command_line += " ";
           command_line += arg;
         }
-        if (!::CreateProcess(executable.c_str(), strdup(command_line.c_str()),
-                             NULL, NULL, true, 0, NULL, NULL,
-                             &startup_info, &this->_process_info))
+        auto env = std::string{};
+        for (auto const& p: this->_owner.env())
+        {
+          env += p.first + " " + p.second;
+          env += '\0';
+        }
+        env += '\0';
+        auto envp =
+          this->_owner.env().empty()) ? nullptr : env.data();
+        if (!::CreateProcess(executable.c_str(),
+                             strdup(command_line.c_str()),
+                             nullptr, // ProcessAttributes.
+                             nullptr, // ThreadAttributes.
+                             true,    // InheritHandles.
+                             0,       // CreationFlags.
+                             envp,    // Environment.
+                             nullptr, // CurrentDirectory.
+                             &startup_info,
+                             &this->_process_info))
           elle::err("unable to start %s: %s", executable, ::GetLastError());
       }
 
@@ -136,21 +191,20 @@ namespace elle
     };
 #endif
 
-    Process::Process(std::vector<std::string> args, bool set_uid)
+    Process::Process(std::vector<std::string> args, bool set_uid,
+                     os::Environ env)
       : _arguments(std::move(args))
       , _set_uid(set_uid)
+      , _env(std::move(env))
       , _impl(new Process::Impl(*this))
     {
       ELLE_TRACE_SCOPE("%s: start", *this);
     }
 
-    Process::Process(std::initializer_list<std::string> args, bool set_uid)
-      : _arguments(args)
-      , _set_uid(set_uid)
-      , _impl(new Process::Impl(*this))
-    {
-      ELLE_TRACE_SCOPE("%s: start", *this);
-    }
+    Process::Process(std::initializer_list<std::string> args, bool set_uid,
+                     os::Environ env)
+      : Self{make_vector(args), set_uid, env}
+    {}
 
     Process::~Process()
     {}
