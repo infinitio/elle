@@ -854,9 +854,9 @@ def configure(curl_config,
     test = drake.cxx.Executable('%s/%s' % (tests_path, test_name),
                                 test_sources + local_test_libs,
                                 cxx_toolkit, cxx_config_tests)
-    rule_tests << test
     if test_name in ['filesystem_git', 'filesystem_bind', 'rdv-cat','rdv-utp-cat', 'utp-chat']:
       continue
+    rule_tests << test
     env = {
       'DIR_BUILD':  str(drake.path_build()),
       'DIR_SOURCE': str(drake.path_source()),
