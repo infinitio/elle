@@ -72,13 +72,18 @@ before_script:
 Jessie build:
   stage: build
   script:
-    - time "$SOURCE_DIR/buildenv" --pick-build-tree --branch "$CI_BUILD_REF_NAME" --link-build-tree "$BUILD_DIR" --build-trees-root "/cache/$CI_PROJECT_NAME"
+    - BUILD_DIR="_build"
+    - mkdir -p "${BUILD_DIR}"
     - if test -n "$FROM_SCRATCH"; then dir=$(realpath $BUILD_DIR); rm -rf "$dir" && mkdir -p "$dir"; else time "$SOURCE_DIR/buildenv" --cache-download-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose; fi
     - mkdir -p "${BUILD_DIR}"
     - farm/configure --arch x86_64 --os jessie --compiler gcc4 --project Elle --source-dir "$SOURCE_DIR" --build-dir "$BUILD_DIR" --install-dir "$INSTALL_DIR"
-    - cd "$BUILD_DIR"
-    - python3 drake -j $(nproc) //build //tests
-    - time "$SOURCE_DIR/buildenv" --cache-upload-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose
+    - (cd "$BUILD_DIR" && python3 drake -j $(nproc) //build //tests)
+  artifacts:
+    untracked: true
+    name: "${CI_PROJECT_NAME}-${CI_JOB_STAGE}-${CI_COMMIT_REF_NAME}"
+    paths:
+      - "_build"
+    expire_in: 1 day
   tags:
     - x86_64
     - jessie
@@ -89,11 +94,15 @@ Jessie test:
   dependencies:
     - Jessie build
   script:
-    - time "$SOURCE_DIR/buildenv" --pick-build-tree --branch "$CI_BUILD_REF_NAME" --link-build-tree "$BUILD_DIR" --build-trees-root "/cache/$CI_PROJECT_NAME"
-    - time "$SOURCE_DIR/buildenv" --cache-download-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose
-    - cd "${BUILD_DIR}"
-    - python3 drake -j $(nproc) //check
+    - BUILD_DIR="_build"
+    - (cd "${BUILD_DIR}" && python3 drake -j $(nproc) //check)
     - time "$SOURCE_DIR/buildenv" --cache-upload-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose
+  artifacts:
+    untracked: true
+    name: "${CI_PROJECT_NAME}-${CI_JOB_STAGE}-${CI_COMMIT_REF_NAME}"
+    paths:
+      - "_build"
+    expire_in: 1 day
   tags:
     - x86_64
     - jessie
@@ -104,15 +113,12 @@ Jessie install:
   dependencies:
     - Jessie test
   script:
-    - time "$SOURCE_DIR/buildenv" --pick-build-tree --branch "$CI_BUILD_REF_NAME" --link-build-tree "$BUILD_DIR" --build-trees-root "/cache/$CI_PROJECT_NAME"
-    - time "$SOURCE_DIR/buildenv" --cache-download-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose
     - mkdir -p "${INSTALL_DIR}"
-    - cd "${BUILD_DIR}"
-    - python3 drake -j $(nproc) //install
+    - (cd cd "${BUILD_DIR}" && python3 drake -j $(nproc) //install)
     - TARBALL="$BUILD_DIR/elle-x86_64-jessie-gcc4-$DESC.tbz"
     - tar $TARFLAGS -cjf "$TARBALL" -C "$INSTALL_DIR" . --show-transformed-names --transform "s,^\\./,elle-$DESC/,"
-    - scp "$TARBALL" buildslave@packages.infinit.sh:tmp
-    - rm "$TARBALL"
+    - scp "$BUILD_DIR/$TARBALL" buildslave@packages.infinit.sh:tmp
+    - rm "$BUILD_DIR/$TARBALL"
     - time "$SOURCE_DIR/buildenv" --cache-upload-build-tree --exclude='*.deb,*.rpm,*.tbz' --branch "$CI_BUILD_REF_NAME" --build-trees-root "/cache/$CI_PROJECT_NAME" --cache-namespace "$CI_RUNNER_DESCRIPTION/$CI_PROJECT_NAME" --cache-id "$CI_RUNNER_ID" --verbose
   tags:
     - x86_64
