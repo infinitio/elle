@@ -646,7 +646,7 @@ namespace barrier
           elle::reactor::wait(timedout);
           b.close();
         });
-      BOOST_CHECK(!elle::reactor::wait(!b, 10_ms));
+      BOOST_CHECK(!elle::reactor::wait(!b, 10ms));
       timedout.open();
       elle::reactor::wait(!b);
     };
@@ -1043,7 +1043,7 @@ test_sleep_interleave()
     {
       BOOST_CHECK(step == 0 || step == 1);
       ++step;
-      elle::reactor::sleep(valgrind(200_ms, 5));
+      elle::reactor::sleep(valgrind(200ms, 5));
       BOOST_CHECK_EQUAL(step, 3);
       ++step;
     });
@@ -1053,7 +1053,7 @@ test_sleep_interleave()
     {
       BOOST_CHECK(step == 0 || step == 1);
       ++step;
-      elle::reactor::sleep(valgrind(100_ms, 5));
+      elle::reactor::sleep(valgrind(100ms, 5));
       BOOST_CHECK_EQUAL(step, 2);
       ++step;
     });
@@ -1069,7 +1069,7 @@ now()
 
 ELLE_TEST_SCHEDULED(test_sleep_timing)
 {
-  elle::reactor::Duration const delay = valgrind(500_ms, 10);
+  elle::reactor::Duration const delay = valgrind(500ms, 10);
   // The first sleep is erratic on valgrind, don't include it in the tests.
   if (RUNNING_ON_VALGRIND)
     elle::reactor::sleep(delay);
@@ -1090,7 +1090,7 @@ ELLE_TEST_SCHEDULED(test_sleep_timing)
 
 ELLE_TEST_SCHEDULED(every)
 {
-  elle::reactor::Duration const delay = valgrind(200_ms, 10);
+  elle::reactor::Duration const delay = valgrind(200ms, 10);
   static const int iter = 5;
   // The first sleep is erratic on valgrind, don't include it in the tests.
   if (RUNNING_ON_VALGRIND)
@@ -1192,16 +1192,16 @@ test_join_timeout()
     sched, "sleeping beauty",
     [&]
     {
-      elle::reactor::sleep(valgrind(200_ms, 10));
+      elle::reactor::sleep(valgrind(200ms, 10));
     });
   elle::reactor::Thread pc(
     sched, "prince charming",
     [&]
     {
-      bool finished = elle::reactor::wait(sb, valgrind(100_ms, 10));
+      bool finished = elle::reactor::wait(sb, valgrind(100ms, 10));
       BOOST_CHECK(!finished);
       BOOST_CHECK(!sb.done());
-      finished = elle::reactor::wait(sb, valgrind(200_ms, 10));
+      finished = elle::reactor::wait(sb, valgrind(200ms, 10));
       BOOST_CHECK(finished);
       BOOST_CHECK(sb.done());
     });
@@ -1310,7 +1310,7 @@ test_timeout_threw()
     });
   elle::reactor::Thread waiter(sched, "waiter", [&] {
       sem.release();
-      elle::reactor::wait(thrower, 100_ms);
+      elle::reactor::wait(thrower, 100ms);
     });
 
   try
@@ -1332,12 +1332,12 @@ test_timeout_finished()
   elle::reactor::Scheduler sched;
 
   elle::reactor::Thread waiter(sched, "waiter", [&] {
-      elle::reactor::Sleep s(sched, 10_ms);
+      elle::reactor::Sleep s(sched, 10ms);
       s.start();
       // Block the IO service to make sure the task times out in the same cycle
       // it finishes.
       sched.io_service().post([] { ::usleep(200000); });
-      elle::reactor::wait(s, 11_ms);
+      elle::reactor::wait(s, 11ms);
     });
   sched.run();
 }
@@ -2549,7 +2549,7 @@ namespace background
   ELLE_TEST_SCHEDULED(operations)
   {
     static int const iterations = 16;
-    elle::reactor::Duration sleep_time = valgrind(500_ms, 5);
+    elle::reactor::Duration sleep_time = valgrind(500ms, 5);
     // The first sleep is erratic on valgrind, don't include it in the
     // tests.
     if (RUNNING_ON_VALGRIND)
@@ -2603,7 +2603,7 @@ namespace background
       [&]
       {
         auto done = std::make_shared<bool>(false);
-        auto const sleep_time = 500_ms;
+        auto const sleep_time = 500ms;
         try
         {
           elle::reactor::background([done, sleep_time]
@@ -2681,7 +2681,7 @@ namespace background
     ELLE_LOG("test already available value")
     {
       elle::reactor::BackgroundFuture<int> f([] { return 69; });
-      elle::reactor::sleep(200_ms);
+      elle::reactor::sleep(200ms);
       BOOST_CHECK_EQUAL(f.value(), 69);
     }
     ELLE_LOG("test killing unfinished")
@@ -2883,7 +2883,7 @@ namespace channel
           elle::reactor::wait(gotcha);
           channel.close();
           channel.put(1);
-          BOOST_CHECK(!elle::reactor::wait(gotcha, 500_ms));
+          BOOST_CHECK(!elle::reactor::wait(gotcha, 500ms));
           channel.open();
           channel.put(2);
           elle::reactor::wait(gotcha);
@@ -2988,7 +2988,7 @@ namespace timer
   ELLE_TEST_SCHEDULED(wait)
   {
     int v = 0;
-    Timer t("myTimer1", 200_ms, std::bind(&coro, std::ref(v)));
+    Timer t("myTimer1", 200ms, std::bind(&coro, std::ref(v)));
     BOOST_CHECK_EQUAL(v, 0);
     t.wait();
     BOOST_CHECK_EQUAL(v, 2);
@@ -2999,7 +2999,7 @@ namespace timer
     bool v = false;
     elle::reactor::Barrier started;
     {
-      Timer t("myTimer2", 0_ms,
+      Timer t("myTimer2", 0ms,
               [&]
               {
                 started.open();
@@ -3017,10 +3017,10 @@ namespace timer
   ELLE_TEST_SCHEDULED(basic_cancel)
   {
     int v = 0;
-    Timer t("myTimer3", 100_ms, std::bind(&coro, std::ref(v)));
+    Timer t("myTimer3", 100ms, std::bind(&coro, std::ref(v)));
     BOOST_CHECK_EQUAL(v, 0);
     t.cancel();
-    elle::reactor::sleep(200_ms);
+    elle::reactor::sleep(200ms);
     BOOST_CHECK_EQUAL(v, 0);
   }
 
@@ -3029,7 +3029,7 @@ namespace timer
     elle::reactor::Barrier b;
     elle::reactor::Barrier b2;
     int v = 0;
-    Timer t("myTimer4", 0_ms, [&] { b.open(); v = 1; b2.wait(); v=2;});
+    Timer t("myTimer4", 0ms, [&] { b.open(); v = 1; b2.wait(); v=2;});
     b.wait();
     BOOST_CHECK_EQUAL(v, 1);
     t.cancel();
@@ -3043,7 +3043,7 @@ namespace timer
   {
     elle::reactor::Barrier b;
     int v = 0;
-    Timer t("myTimer5", 0_ms, [&] { b.open(); v = 1; elle::reactor::yield(); elle::reactor::yield(); v=2;});
+    Timer t("myTimer5", 0ms, [&] { b.open(); v = 1; elle::reactor::yield(); elle::reactor::yield(); v=2;});
     b.wait();
     t.cancel_now(); // Waits.
     BOOST_CHECK_EQUAL(v, 2);
@@ -3053,7 +3053,7 @@ namespace timer
   {
     int v = 0;
     elle::reactor::Barrier b;
-    Timer t("myTimer6", 0_ms, [&]
+    Timer t("myTimer6", 0ms, [&]
             {
               try {
                 b.open(); v = 1; elle::reactor::yield(); elle::reactor::yield(); v=2;
@@ -3076,7 +3076,7 @@ namespace timer
   {
     int v = 0;
     elle::reactor::Barrier b;
-    Timer t("myTimer7", 0_ms, [&]
+    Timer t("myTimer7", 0ms, [&]
             {
               try {
                 b.open(); v = 1; elle::reactor::yield(); elle::reactor::yield(); v=2;
@@ -3105,15 +3105,15 @@ namespace timeout_
         "control",
         [&]
         {
-          elle::reactor::sleep(valgrind(50_ms, 20));
+          elle::reactor::sleep(valgrind(50ms, 20));
           beacon1 = true;
-          elle::reactor::sleep(valgrind(100_ms, 20));
+          elle::reactor::sleep(valgrind(100ms, 20));
           beacon2 = true;
         });
       try
       {
-        elle::reactor::TimeoutGuard timeout(valgrind(100_ms, 20));
-        elle::reactor::sleep(valgrind(200_ms, 20));
+        elle::reactor::TimeoutGuard timeout(valgrind(100ms, 20));
+        elle::reactor::sleep(valgrind(200ms, 20));
         BOOST_ERROR("didn't timeout");
       }
       catch(elle::reactor::Timeout const&)
@@ -3129,8 +3129,8 @@ namespace timeout_
     {
       try
       {
-        elle::reactor::TimeoutGuard timeout(500_ms);
-        elle::reactor::sleep(100_ms);
+        elle::reactor::TimeoutGuard timeout(500ms);
+        elle::reactor::sleep(100ms);
       }
       catch(elle::reactor::Timeout const&)
       {
@@ -3143,7 +3143,7 @@ namespace timeout_
   {
     try
     {
-      auto const sleep_time = valgrind(10_ms);
+      auto const sleep_time = valgrind(10ms);
       elle::reactor::TimeoutGuard timeout(sleep_time);
       ::usleep((sleep_time * 2).total_microseconds());
     }
