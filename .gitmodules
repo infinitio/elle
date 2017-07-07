@@ -1,21 +1,21 @@
 [submodule "reactor/asio-udt"]
 	path = reactor/asio-udt
-	url = git@git.infinit.io:asio-udt
+	url = ../asio-udt
 [submodule "drake"]
 	path = drake
-	url = git@git.infinit.io:drake
+	url = ../drake
 [submodule "reactor/asio-fs"]
 	path = reactor/asio-fs
-	url = git@git.infinit.io:asio-fs
+	url = ../asio-fs
 [submodule "elle/src/elle/json/json-spirit"]
 	path = elle/src/elle/json/json-spirit
 	url = https://github.com/infinitdotio/json-spirit
 [submodule "reactor/miniupnp"]
 	path = reactor/miniupnp
-	url = git@git.infinit.io:miniupnp
+	url = ../miniupnp
 [submodule "cryptography"]
 	path = cryptography
-	url = git@git.infinit.io:cryptography
+	url = ../cryptography
 [submodule "reactor/libutp"]
 	path = reactor/libutp
-	url = git@git.infinit.io:libutp
+	url = ../libutp
