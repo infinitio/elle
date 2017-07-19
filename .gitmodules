@@ -9,7 +9,7 @@
 	url = ../asio-fs
 [submodule "elle/src/elle/json/json-spirit"]
 	path = elle/src/elle/json/json-spirit
-	url = https://github.com/infinitdotio/json-spirit
+	url = ../json-spirit
 [submodule "reactor/miniupnp"]
 	path = reactor/miniupnp
 	url = ../miniupnp
